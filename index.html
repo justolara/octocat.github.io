@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Comandas</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { max-width: 800px; width: 100%; }
+        h2 { border-bottom: 2px solid #3498db; padding-bottom: 5px; color: #2c3e50; margin-top: 30px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        /* Botones de productos */
+        .btn-prod { 
+            padding: 15px 10px; border: none; border-radius: 12px; cursor: pointer; 
+            background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: 0.2s;
+            display: flex; flex-direction: column; align-items: center; font-size: 14px;
+        }
+        .btn-prod:hover { background: #fdfdfd; transform: translateY(-3px); box-shadow: 0 6px 12px rgba(0,0,0,0.1); }
+        .btn-prod:active { transform: translateY(0); }
+        .icon { font-size: 28px; margin-bottom: 8px; }
+        /* Tabla de ticket */
+        .resumen { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-top: 30px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #f0f0f0; }
+        .btn-restar { background: #ff4757; color: white; border: none; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-restar:hover { background: #ff6b81; }
+        .total { font-size: 24px; font-weight: bold; text-align: right; margin-top: 20px; color: #1e272e; }
+        .acciones { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-reset { background: #7f8c8d; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: bold; }
+        .btn-print { background: #2ecc71; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; flex: 2; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>🍷 Bebidas</h2>
+    <div class="grid" id="bebidas"></div>
+    <h2>🍴 Comidas</h2>
+    <div class="grid" id="comidas"></div>
+    <div class="resumen">
+        <h3>Ticket Actual</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Cant.</th>
+                    <th>Subtotal</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody id="lista-ticket"></tbody>
+        </table>
+        <div class="total" id="total-precio">Total: 0.00€</div>
+        <div class="acciones">
+            <button class="btn-reset" onclick="resetear()">Limpiar</button>
+            <button class="btn-print" onclick="window.print()">Imprimir Ticket</button>
+        </div>
+    </div>
+</div>
+<script>
+const productos = {
+    bebidas: [
+        { nombre: "Copa Vino", precio: 2.50, icono: "🍷" },
+        { nombre: "Botella Vino", precio: 15.30, icono: "🍾" },
+        { nombre: "Botella 1/2", precio: 7.65, icono: "🍷" },
+        { nombre: "Mediana Est.", precio: 2.40, icono: "🍺" },
+        { nombre: "Copa Cerveza", precio: 2.80, icono: "🍻" },
+        { nombre: "Quinto", precio: 1.90, icono: "🍺" },
+        { nombre: "Refresco", precio: 2.40, icono: "🥤" },
+        { nombre: "Agua G.", precio: 2.50, icono: "💧" },
+        { nombre: "Agua P.", precio: 1.50, icono: "💧" }
+    ],
+    comidas: [
+        { nombre: "Morro", precio: 5.80, icono: "🥓" },
+        { nombre: "Bravas", precio: 5.40, icono: "🍟" },
+        { nombre: "Patatas F.", precio: 3.50, icono: "🍟" },
+        { nombre: "Olivas", precio: 2.30, icono: "🫒" }
+    ]
+};
+let cuenta = JSON.parse(localStorage.getItem('comanda_activa')) || {};
+function renderizarBotones() {
+    for (let cat in productos) {
+        const div = document.getElementById(cat);
+        productos[cat].forEach(p => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-prod';
+            btn.innerHTML = `<span class="icon">${p.icono}</span> <span>${p.nombre}</span> <b>${p.precio.toFixed(2)}€</b>`;
+            btn.onclick = () => añadir(p.nombre, p.precio);
+            div.appendChild(btn);
+        });
+    }
+}
+function añadir(nombre, precio) {
+    if (!cuenta[nombre]) {
+        cuenta[nombre] = { cantidad: 0, precio: precio };
+    }
+    cuenta[nombre].cantidad++;
+    actualizarVista();
+}
+function restar(nombre) {
+    if (cuenta[nombre]) {
+        cuenta[nombre].cantidad--;
+        if (cuenta[nombre].cantidad <= 0) {
+            delete cuenta[nombre];
+        }
+        actualizarVista();
+    }
+}
+function actualizarVista() {
+    const lista = document.getElementById('lista-ticket');
+    const totalElem = document.getElementById('total-precio');
+    lista.innerHTML = "";
+    let total = 0;
+    for (let p in cuenta) {
+        const subtotal = cuenta[p].cantidad * cuenta[p].precio;
+        total += subtotal;
+        lista.innerHTML += `
+            <tr>
+                <td>${p}</td>
+                <td>${cuenta[p].cantidad}</td>
+                <td>${subtotal.toFixed(2)}€</td>
+                <td><button class="btn-restar" onclick="restar('${p}')">-</button></td>
+            </tr>`;
+    }
+    totalElem.innerText = `Total: ${total.toFixed(2)}€`;
+    localStorage.setItem('comanda_activa', JSON.stringify(cuenta));
+}
+function resetear() {
+    if(confirm("¿Borrar la cuenta actual?")) {
+        cuenta = {};
+        actualizarVista();
+    }
+}
+renderizarBotones();
+actualizarVista();
+</script>
+</body>
+</html>
